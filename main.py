@@ -2,6 +2,7 @@ import os
 import asyncio
 import time
 import datetime
+from datetime import datetime as dt
 import requests
 from discord import Client
 from discord.errors import HTTPException
@@ -64,7 +65,7 @@ async def execute_command_with_retry(command, channel, **kwargs):
 async def send_webhook_update(success_count, total_count, error_messages=None):
     end_time = time.time()
     duration = round(end_time - START_TIME, 2)
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_time = dt.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Calculate total collections by token type
     total_5k = sum(amount for token, amount in token_collections.items() if TOKEN_TYPE_MAP.get(token) == "5k")
@@ -96,7 +97,7 @@ async def send_webhook_update(success_count, total_count, error_messages=None):
             }
         ],
         "footer": {
-            "text": "Farm Collection Bot"
+            "text": f"Farm Collection Bot • {current_time}"
         }
     }
 
@@ -150,7 +151,7 @@ async def run_client(token):
     command_start_time = time.time()  # Track command execution time
 
     def log_message(user, action, details="", level="INFO"):
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = dt.now().strftime("%Y-%m-%d %H:%M:%S")
         colors = {
             "INFO": "\033[92m",  # Green
             "WARN": "\033[93m",  # Yellow
@@ -232,7 +233,10 @@ async def run_client(token):
                                         # Extract timestamp from Discord format <t:1234567890:R>
                                         timestamp_str = line.split('<t:')[1].split(':R>')[0].strip()
                                         
-                                        formatted_message.append(f"{role_num} - in <t:{timestamp_str}:R> - 💸{amount_str}")
+                                        # Convert Unix timestamp to readable format
+                                        readable_time = dt.fromtimestamp(int(timestamp_str)).strftime("%Y-%m-%d %H:%M:%S")
+                                        
+                                        formatted_message.append(f"{role_num} - available at {readable_time} - 💸{amount_str}")
                                     except Exception as e:
                                         log_message(client.user, "ERROR", f"Failed to parse delay line: {line} - {str(e)}", "DEBUG")
                                         continue
@@ -244,8 +248,9 @@ async def run_client(token):
                             if first_line:
                                 try:
                                     timestamp_str = first_line.split('<t:')[1].split(':R>')[0].strip()
-                                    first_delay = f"<t:{timestamp_str}:R>"
-                                    log_message(client.user, "COLLECT DELAY", f"Collection available in {first_delay}", "WARN")
+                                    # Convert Unix timestamp to readable format
+                                    readable_time = dt.fromtimestamp(int(timestamp_str)).strftime("%Y-%m-%d %H:%M:%S")
+                                    log_message(client.user, "COLLECT DELAY", f"Collection available at {readable_time}", "WARN")
                                 except Exception as e:
                                     log_message(client.user, "ERROR", f"Failed to parse first delay: {str(e)}", "DEBUG")
                             message_received.set()
@@ -271,6 +276,19 @@ async def run_client(token):
                                 except Exception as e:
                                     log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
                                     continue
+                        
+                        # Parse lines in format "`1` - <@&1144172856763224215> 💸10,000 (cash)"
+                        if not cash_amounts:
+                            for line in embed_description.split('\n'):
+                                if '`' in line and '💸' in line and '(cash)' in line:
+                                    try:
+                                        amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                        amount = int(amount_str.replace(',', ''))
+                                        cash_amounts.append(amount)
+                                        log_message(client.user, "DEBUG", f"Parsed amount (format 2): {amount:,}", "DEBUG")
+                                    except Exception as e:
+                                        log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
+                                        continue
                         
                         collected_amount = sum(cash_amounts)
                         token_collections[token] = collected_amount
@@ -324,13 +342,24 @@ async def run_client(token):
                     formatted_message = []
                     for line in message.content.split('\n'):
                         if line.strip():  # Only process non-empty lines
-                            if '(cash) in' in line:
-                                # This is a role line, format it nicely
-                                parts = line.split('|')
-                                if len(parts) == 2:
-                                    role_num = parts[0].strip()
-                                    income_info = parts[1].strip()
-                                    formatted_message.append(f"{role_num} | {income_info}")
+                            if '(cash) in' in line and '<t:' in line:
+                                try:
+                                    # Extract parts
+                                    parts = line.split('|')
+                                    if len(parts) == 2:
+                                        role_num = parts[0].strip()
+                                        income_info = parts[1].strip()
+                                        
+                                        # Extract timestamp if present
+                                        if '<t:' in income_info:
+                                            timestamp_str = income_info.split('<t:')[1].split(':R>')[0].strip()
+                                            readable_time = dt.fromtimestamp(int(timestamp_str)).strftime("%Y-%m-%d %H:%M:%S")
+                                            income_info = income_info.replace(f"<t:{timestamp_str}:R>", readable_time)
+                                        
+                                        formatted_message.append(f"{role_num} | {income_info}")
+                                except Exception:
+                                    # If parsing fails, just use the original line
+                                    formatted_message.append(line.strip())
                             else:
                                 # This is the header line or other info
                                 formatted_message.append(line.strip())
@@ -414,23 +443,6 @@ async def run_client(token):
                         if collected_amount > 0:
                             log_message(client.user, "SUCCESS", f"Successfully collected 💸{collected_amount:,}", "SUCCESS")
                             
-                        token_type = TOKEN_TYPE_MAP.get(token)
-                        # Only proceed with payment if we collected an amount
-                        if collected_amount > 0:
-                            # Reset event for payment response
-                            message_received.clear()
-                            
-                            if token_type == "5k":
-                                commission = int(collected_amount * 0.25)  # Calculate 25% commission
-                                log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (25% of {collected_amount:,})", "INFO")
-                                await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
-                                await asyncio.sleep(2)  # Small delay after sending payment
-                                
-                            elif token_type == "15k":
-                                commission = int(collected_amount * 0.3333)  # Calculate 33.33% commission
-                                log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (33.33% of {collected_amount:,})", "INFO")
-                                await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
-                                await asyncio.sleep(2)  # Small delay after sending payment
                     except asyncio.TimeoutError:
                         log_message(client.user, "WARN", "No response received for collection, continuing", "WARN")
                     
@@ -451,6 +463,9 @@ async def run_client(token):
                             log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (33.33% of {collected_amount:,})", "INFO")
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
+                        elif token_type == "master":
+                            # No commission for master tokens
+                            log_message(client.user, "COMMISSION", f"💸 No commission (master token)", "INFO")
                     
                     # After payment is processed, then do deposit
                     log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
