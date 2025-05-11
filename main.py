@@ -454,18 +454,8 @@ async def run_client(token):
                     
                     # After payment is processed, then do deposit
                     log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
-                    message_received.clear()  # Reset for deposit response
                     
                     if await execute_command_with_retry(deposit_command, channel, amount="all"):
-                        try:
-                            # Wait for deposit confirmation
-                            await asyncio.wait_for(message_received.wait(), timeout=10)
-                            log_message(client.user, "RESPONSE", "Deposit confirmed", "DEBUG")
-                            await asyncio.sleep(2)
-                        except asyncio.TimeoutError:
-                            log_message(client.user, "WARN", "No deposit confirmation received, continuing", "WARN")
-                            await asyncio.sleep(2)
-                        
                         execution_time = round(time.time() - command_start_time, 2)
                         log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
                         success = True
