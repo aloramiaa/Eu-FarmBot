@@ -190,6 +190,9 @@ async def run_client(token):
             if message.author.id != 292953664492929025:  # UnbelievaBoat's ID
                 return
                 
+            # More detailed logging for all incoming messages
+            log_message(client.user, "DEBUG", f"Received message from UnbelievaBoat", "DEBUG")
+                
             # Check message in multiple ways
             is_response_for_user = False
             message_content = message.content
@@ -203,12 +206,16 @@ async def run_client(token):
                     embed_author_name = embed.author.name
                 if embed.description:
                     embed_description = embed.description
+                
+                # Log all embeds for debugging
+                if embed_author_name and embed_description:
+                    log_message(client.user, "DEBUG", f"Embed - Author: {embed_author_name}, First line: {embed_description.split('\n')[0] if embed_description else 'None'}", "DEBUG")
                     
                 # For collection response, check if the message is for this user
                 if embed_author_name and embed_description:
                     # Only process if the message is for this user
                     if str(client.user) == embed_author_name:
-                        log_message(client.user, "DEBUG", f"Processing embed - Author: {embed_author_name}, Description: {embed_description}", "DEBUG")
+                        log_message(client.user, "DEBUG", f"Processing embed for {client.user}", "DEBUG")
                         
                         # Check for various response types
                         if "<:stopwatch:" in embed_description and "You can next work" in embed_description:
@@ -255,92 +262,58 @@ async def run_client(token):
                                     log_message(client.user, "ERROR", f"Failed to parse first delay: {str(e)}", "DEBUG")
                             message_received.set()
                             return
-
-                    elif "<:xmark:" in embed_description and "You don't have any money to deposit!" in embed_description:
-                        is_response_for_user = True
-                        message_received.set()
-                        return
-                        
-                    elif "✓ Role income successfully collected!" in embed_description:
-                        is_response_for_user = True
-                        cash_amounts = []
-                        
-                        # Parse successful collection amounts
-                        for line in embed_description.split('\n'):
-                            if '@' in line and '💸' in line and '(cash)' in line:
-                                try:
-                                    amount_str = line.split('💸')[1].split('(cash)')[0].strip()
-                                    amount = int(amount_str.replace(',', ''))
-                                    cash_amounts.append(amount)
-                                    log_message(client.user, "DEBUG", f"Parsed amount: {amount:,}", "DEBUG")
-                                except Exception as e:
-                                    log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
-                                    continue
-                        
-                        # Parse lines in format "`1` - <@&1144172856763224215> 💸10,000 (cash)"
-                        if not cash_amounts:
+                        elif ("Role income successfully collected!" in embed_description) or ("<:check:" in embed_description and "Role income successfully collected!" in embed_description):
+                            is_response_for_user = True
+                            log_message(client.user, "DEBUG", f"Found collection success message!", "DEBUG")
+                            cash_amounts = []
+                            
+                            # Parse successful collection amounts for format with backticks
                             for line in embed_description.split('\n'):
                                 if '`' in line and '💸' in line and '(cash)' in line:
                                     try:
                                         amount_str = line.split('💸')[1].split('(cash)')[0].strip()
                                         amount = int(amount_str.replace(',', ''))
                                         cash_amounts.append(amount)
-                                        log_message(client.user, "DEBUG", f"Parsed amount (format 2): {amount:,}", "DEBUG")
+                                        log_message(client.user, "DEBUG", f"Parsed amount (format 1): {amount:,}", "DEBUG")
                                     except Exception as e:
                                         log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
                                         continue
-                        
-                        collected_amount = sum(cash_amounts)
-                        token_collections[token] = collected_amount
-                        log_message(client.user, "COLLECTED", f"💰 {collected_amount:,} cash from {len(cash_amounts)} roles")
-                        message_received.set()
-
-            if is_response_for_user and str(client.user) == embed_author_name:
-                message_received.set()
-                log_message(client.user, "MESSAGE", f"Processing response for {client.user.name}", "DEBUG")
-                
-                # Check for failed collection (❌)
-                if "❌" in (message.content or (message.embeds and message.embeds[0].description or "")):
-                    failed_collections.append(f"{client.user}: Collection failed")
-                    collected_amount = 0
-                    return
-
-                # First check embeds for collect delay message
-                if message.embeds:
-                    for embed in message.embeds:
-                        if not embed.description:
-                            continue
-                        if "<:xmark:" in embed.description and "You can collect income again" in embed.description:
-                            # If we see this message, set collected_amount to 0 to skip payment
-                            collected_amount = 0
-                            # Format each line of the message for better readability
-                            formatted_message = []
-                            # Get the actual delay message lines
-                            for line in embed.description.split('\n'):
-                                if '@' in line and '💸' in line and '(cash)' in line:
-                                    parts = line.split('@')
-                                    if len(parts) >= 2:
-                                        role_num = parts[0].strip()
-                                        role_info = parts[1].split('💸')
-                                        if len(role_info) >= 2:
-                                            amount = role_info[1].split('(cash)')[0].strip()
-                                            delay = line.split('>')[-1].strip()
-                                            formatted_message.append(f"{role_num} - 💸{amount} {delay}")
-                                elif line.strip():  # Include non-empty header lines
-                                    formatted_message.append(line.strip())
                             
-                            if formatted_message:
-                                collect_again_messages.append(f"```{client.user}\n" + "\n".join(formatted_message) + "```")
-                                log_message(client.user, "COLLECT DELAY", f"➜ Collection not ready: {embed.description}", "WARN")
+                            # Parse successful collection amounts for format with @ symbol
+                            if not cash_amounts:
+                                for line in embed_description.split('\n'):
+                                    if '@' in line and '💸' in line and '(cash)' in line:
+                                        try:
+                                            amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                            amount = int(amount_str.replace(',', ''))
+                                            cash_amounts.append(amount)
+                                            log_message(client.user, "DEBUG", f"Parsed amount (format 2): {amount:,}", "DEBUG")
+                                        except Exception as e:
+                                            log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
+                                            continue
+                            
+                            collected_amount = sum(cash_amounts)
+                            token_collections[token] = collected_amount
+                            log_message(client.user, "COLLECTED", f"💰 {collected_amount:,} cash from {len(cash_amounts)} roles", "SUCCESS")
+                            message_received.set()
                             return
-                
-                # Fallback to old content check if not found in embeds
-                if "You can collect income again" in (message.content or ""):
-                    # If we see this message, set collected_amount to 0 to skip payment
+                        elif "<:check:" in embed_description and "Deposited" in embed_description:
+                            is_response_for_user = True
+                            message_received.set()
+                            return
+                        elif "<:xmark:" in embed_description and "You don't have any money to deposit!" in embed_description:
+                            is_response_for_user = True
+                            message_received.set()
+                            return
+
+            # Process regular messages if needed
+            if message_content:
+                if str(client.user) in message_content and "You can collect income again" in message_content:
+                    is_response_for_user = True
                     collected_amount = 0
                     # Format each line of the message for better readability
                     formatted_message = []
-                    for line in message.content.split('\n'):
+                    for line in message_content.split('\n'):
                         if line.strip():  # Only process non-empty lines
                             if '(cash) in' in line and '<t:' in line:
                                 try:
@@ -363,31 +336,10 @@ async def run_client(token):
                             else:
                                 # This is the header line or other info
                                 formatted_message.append(line.strip())
-                
+                    
                     collect_again_messages.append(f"```{client.user}\n" + "\n".join(formatted_message) + "```")
-                    log_message(client.user, "COLLECT DELAY", f"➜ Roles available in: {message.content.strip()}")
-                elif "✓ Role income successfully collected!" in embed_description:
-                    # Parse the amounts from the embed
-                    cash_amounts = []
-                    
-                    # Process lines looking for the format "1 - @Role 💸10,000 (cash)"
-                    lines = embed_description.split('\n')
-                    for line in lines:
-                        if '💸' in line and '(cash)' in line:
-                            try:
-                                # Extract amount between 💸 and (cash)
-                                amount_str = line.split('💸')[1].split('(cash)')[0].strip()
-                                # Remove commas and convert to int
-                                amount = int(amount_str.replace(',', ''))
-                                cash_amounts.append(amount)
-                                log_message(client.user, "DEBUG", f"Parsed collection: {amount:,}", "DEBUG")
-                            except Exception as e:
-                                log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
-                                continue
-                    
-                    collected_amount = sum(cash_amounts)
-                    token_collections[token] = collected_amount
-                    log_message(client.user, "COLLECTED", f"💰 {collected_amount:,} cash from {len(cash_amounts)} roles")
+                    log_message(client.user, "COLLECT DELAY", f"➜ Roles available in: {message_content.strip()}", "WARN")
+                    message_received.set()
 
     @client.event
     async def on_ready():
@@ -433,21 +385,75 @@ async def run_client(token):
                     # Wait for bot response with timeout
                     try:
                         log_message(client.user, "WAITING", "Waiting for bot response...", "DEBUG")
-                        await asyncio.wait_for(message_received.wait(), timeout=10)
-                        log_message(client.user, "RESPONSE", "Bot response received", "DEBUG")
+                        await asyncio.wait_for(message_received.wait(), timeout=5)  # Reduced timeout to 5 seconds
+                        log_message(client.user, "RESPONSE", f"Bot response received, collected amount: {collected_amount}", "DEBUG")
                         
-                        # Add delay to ensure any late messages are processed
-                        await asyncio.sleep(2)
-                        
-                        # Check collected amount as it might have been set by a late message
-                        if collected_amount > 0:
-                            log_message(client.user, "SUCCESS", f"Successfully collected 💸{collected_amount:,}", "SUCCESS")
-                            
                     except asyncio.TimeoutError:
-                        log_message(client.user, "WARN", "No response received for collection, continuing", "WARN")
+                        log_message(client.user, "WARN", "No response received for collection, trying to recover from recent messages", "WARN")
+                        # Check if we can find the collection in the embed by retrieving recent messages
+                        try:
+                            # Try to get the most recent messages in the channel
+                            messages = [msg async for msg in channel.history(limit=10)]
+                            log_message(client.user, "DEBUG", f"Retrieved {len(messages)} recent messages to check for collection", "DEBUG")
+                            
+                            for msg in messages:
+                                if msg.author.id == 292953664492929025 and msg.embeds:  # UnbelievaBoat's ID
+                                    for embed in msg.embeds:
+                                        # Check if this embed is for the current user
+                                        if embed.author and str(client.user) == embed.author.name:
+                                            log_message(client.user, "DEBUG", f"Found message for current user", "DEBUG")
+                                            
+                                            # Check if it's a collection message
+                                            if embed.description and "Role income successfully collected!" in embed.description:
+                                                log_message(client.user, "DEBUG", f"Found collection message in history", "DEBUG")
+                                                # Process this message as our collection message
+                                                cash_amounts = []
+                                                for line in embed.description.split('\n'):
+                                                    if ('`' in line or '@' in line) and '💸' in line and '(cash)' in line:
+                                                        try:
+                                                            amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                                            amount = int(amount_str.replace(',', ''))
+                                                            cash_amounts.append(amount)
+                                                            log_message(client.user, "DEBUG", f"Recovered amount: {amount:,}", "DEBUG")
+                                                        except Exception as e:
+                                                            log_message(client.user, "ERROR", f"Failed to parse recovered amount: {e}", "DEBUG")
+                                                            continue
+                                                
+                                                if cash_amounts:
+                                                    collected_amount = sum(cash_amounts)
+                                                    token_collections[token] = collected_amount
+                                                    log_message(client.user, "RECOVERED", f"Found collection: 💸{collected_amount:,}", "SUCCESS")
+                                                    break  # Stop processing once we find a valid collection
+                                        
+                                        # If we still haven't found a collection amount, check for deposit messages
+                                        if collected_amount == 0 and embed.author and str(client.user) == embed.author.name:
+                                            if embed.description and "Deposited" in embed.description:
+                                                # If we find a deposit message and didn't detect collection, try to recover from deposit amount
+                                                try:
+                                                    if '💸' in embed.description and 'to your bank' in embed.description:
+                                                        deposit_str = embed.description.split('💸')[1].split('to')[0].strip()
+                                                        deposit_amount = int(deposit_str.replace(',', ''))
+                                                        if deposit_amount > 0:
+                                                            collected_amount = deposit_amount
+                                                            token_collections[token] = collected_amount
+                                                            log_message(client.user, "RECOVERED", f"Estimated collection from deposit: 💸{collected_amount:,}", "SUCCESS")
+                                                            break  # Stop processing once we find a valid deposit
+                                                except Exception as e:
+                                                    log_message(client.user, "ERROR", f"Failed to parse deposit amount: {e}", "DEBUG")
+                        except Exception as e:
+                            log_message(client.user, "ERROR", f"Failed to recover collection amount: {e}", "DEBUG")
                     
-                    token_type = TOKEN_TYPE_MAP.get(token)
+                    # Add a small delay to ensure all messages are processed
+                    await asyncio.sleep(1)
+                    
+                    # Log the final collection status
+                    if collected_amount > 0:
+                        log_message(client.user, "COLLECTION STATUS", f"Final collection amount: 💸{collected_amount:,}", "SUCCESS")
+                    else:
+                        log_message(client.user, "COLLECTION STATUS", "No collection detected", "WARN")
+                    
                     # Only proceed with payment if we collected an amount
+                    token_type = TOKEN_TYPE_MAP.get(token)
                     if collected_amount > 0:
                         # Reset event for payment response
                         message_received.clear()
@@ -466,17 +472,19 @@ async def run_client(token):
                         elif token_type == "master":
                             # No commission for master tokens
                             log_message(client.user, "COMMISSION", f"💸 No commission (master token)", "INFO")
-                    
-                    # After payment is processed, then do deposit
-                    log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
-                    
-                    if await execute_command_with_retry(deposit_command, channel, amount="all"):
-                        execution_time = round(time.time() - command_start_time, 2)
-                        log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
-                        success = True
-                    else:
-                        log_message(client.user, "ERROR", "Failed to execute deposit command", "ERROR")
-                        failed_collections.append(f"{client.user} - Failed to execute deposit command")
+                        else:
+                            log_message(client.user, "COMMISSION", "No collection detected, skipping commission", "WARN")
+                        
+                        # After payment is processed, then do deposit
+                        log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
+                        
+                        if await execute_command_with_retry(deposit_command, channel, amount="all"):
+                            execution_time = round(time.time() - command_start_time, 2)
+                            log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
+                            success = True
+                        else:
+                            log_message(client.user, "ERROR", "Failed to execute deposit command", "ERROR")
+                            failed_collections.append(f"{client.user} - Failed to execute deposit command")
 
         except Exception as e:
             error_message = f"Error with {client.user}: {str(e)}"
@@ -484,7 +492,10 @@ async def run_client(token):
             log_message(client.user, "DEBUG", f"Error occurred after {round(time.time() - command_start_time, 2)}s of execution", "DEBUG")
             failed_collections.append(f"{client.user} - Exception: {str(e)}")
         finally:
-            await client.close()
+            try:
+                await client.close()
+            except Exception as e:
+                log_message(client.user, "DEBUG", f"Error during client cleanup: {str(e)}", "DEBUG")
             done.set()
 
     try:
