@@ -209,7 +209,7 @@ async def run_client(token):
                 
                 # Log all embeds for debugging
                 if embed_author_name and embed_description:
-                    log_message(client.user, "DEBUG", f"Embed - Author: {embed_author_name}, First line: {embed_description.split('\n')[0] if embed_description else 'None'}", "DEBUG")
+                    log_message(client.user, "DEBUG", f"Embed - Author: {embed_author_name}, First line: {embed_description.split('\\n')[0] if embed_description else 'None'}", "DEBUG")
                     
                 # For collection response, check if the message is for this user
                 if embed_author_name and embed_description:
