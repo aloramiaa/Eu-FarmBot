@@ -449,21 +449,14 @@ async def run_client(token):
                     # Log the final collection status
                     if collected_amount > 0:
                         log_message(client.user, "COLLECTION STATUS", f"Final collection amount: 💸{collected_amount:,}", "SUCCESS")
-                    else:
-                        log_message(client.user, "COLLECTION STATUS", "No collection detected", "WARN")
-                    
-                    # Only proceed with payment if we collected an amount
-                    token_type = TOKEN_TYPE_MAP.get(token)
-                    if collected_amount > 0:
-                        # Reset event for payment response
-                        message_received.clear()
                         
+                        # Only process commissions if we collected an amount
+                        token_type = TOKEN_TYPE_MAP.get(token)
                         if token_type == "5k":
                             commission = int(collected_amount * 0.25)  # Calculate 25% commission
                             log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (25% of {collected_amount:,})", "INFO")
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
-                            
                         elif token_type == "15k":
                             commission = int(collected_amount * 0.3333)  # Calculate 33.33% commission
                             log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (33.33% of {collected_amount:,})", "INFO")
@@ -472,19 +465,21 @@ async def run_client(token):
                         elif token_type == "master":
                             # No commission for master tokens
                             log_message(client.user, "COMMISSION", f"💸 No commission (master token)", "INFO")
-                        else:
-                            log_message(client.user, "COMMISSION", "No collection detected, skipping commission", "WARN")
-                        
-                        # After payment is processed, then do deposit
-                        log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
-                        
-                        if await execute_command_with_retry(deposit_command, channel, amount="all"):
-                            execution_time = round(time.time() - command_start_time, 2)
-                            log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
-                            success = True
-                        else:
-                            log_message(client.user, "ERROR", "Failed to execute deposit command", "ERROR")
-                            failed_collections.append(f"{client.user} - Failed to execute deposit command")
+                    else:
+                        log_message(client.user, "COLLECTION STATUS", "No collection detected", "WARN")
+                        log_message(client.user, "COMMISSION", "No collection detected, skipping commission", "WARN")
+                    
+                    # After commission handling (or skipping), proceed with deposit
+                    log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
+                    
+                    # Execute deposit command regardless of collection status
+                    if await execute_command_with_retry(deposit_command, channel, amount="all"):
+                        execution_time = round(time.time() - command_start_time, 2)
+                        log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
+                        success = True
+                    else:
+                        log_message(client.user, "ERROR", "Failed to execute deposit command", "ERROR")
+                        failed_collections.append(f"{client.user} - Failed to execute deposit command")
 
         except Exception as e:
             error_message = f"Error with {client.user}: {str(e)}"
