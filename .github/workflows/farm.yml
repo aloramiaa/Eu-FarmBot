@@ -11,19 +11,31 @@ env:
 jobs:
   farm:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      
+      # Step 1: Checkout the latest code from GitHub
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetches the full history to ensure you're using the latest commit
+
+      # Step 2: Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
+
+      # Step 3: Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          
+
+      # Optional: Clear pip cache (in case you suspect dependency cache issues)
+      - name: Clear pip cache
+        run: rm -rf ~/.cache/pip
+
+      # Step 4: Run the farm bot script with necessary environment variables
       - name: Run farm bot
         env:
           MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
