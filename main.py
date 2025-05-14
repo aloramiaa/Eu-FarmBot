@@ -471,8 +471,8 @@ async def run_client(token):
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "30k":
-                            commission = int(collected_amount * 0.25)  # Calculate 25% commission
-                            log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (25% of {collected_amount:,})", "INFO")
+                            commission = int(collected_amount * 0.30)  # Calculate 30% commission
+                            log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (30% of {collected_amount:,})", "INFO")
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "master":
