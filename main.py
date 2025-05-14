@@ -20,7 +20,9 @@ load_dotenv()  # Load from .env
 MASTER_TOKENS = [t.strip() for t in os.getenv("MASTER_TOKEN", "").split(",") if t.strip()]
 TOKENS_5K = [t.strip() for t in os.getenv("TOKEN_5K", "").split(",") if t.strip()]
 TOKENS_15K = [t.strip() for t in os.getenv("TOKEN_15K", "").split(",") if t.strip()]
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://ptb.discord.com/api/webhooks/1365286807620554812/ag7FP-itIJOypb5XfrwJpUKQaP4yIdY02QK6R8Ri_BMpQTG6xTwuRJzMXfMUtE8hwaVn")
+TOKENS_30K = [t.strip() for t in os.getenv("TOKEN_30K", "").split(",") if t.strip()]
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID", "1369318379218796605"))
 
 START_TIME = time.time()
 
@@ -34,9 +36,12 @@ TOKEN_TYPE_MAP.update({
 TOKEN_TYPE_MAP.update({
     token: "15k" for token in TOKENS_15K
 })
+TOKEN_TYPE_MAP.update({
+    token: "30k" for token in TOKENS_30K
+})
 
 TOKENS = list(TOKEN_TYPE_MAP.keys())
-COMMISSION_USER_ID = 1236292707371057216  # @aloramiaa
+COMMISSION_USER_ID = int(os.getenv("COMMISSION_USER_ID", "1236292707371057216"))  # Default to @aloramiaa if not specified
 CLIENT_TIMEOUT = 120  # Timeout in seconds
 
 async def execute_command_with_retry(command, channel, **kwargs):
@@ -70,11 +75,14 @@ async def send_webhook_update(success_count, total_count, error_messages=None):
     # Calculate total collections by token type
     total_5k = sum(amount for token, amount in token_collections.items() if TOKEN_TYPE_MAP.get(token) == "5k")
     total_15k = sum(amount for token, amount in token_collections.items() if TOKEN_TYPE_MAP.get(token) == "15k")
+    total_30k = sum(amount for token, amount in token_collections.items() if TOKEN_TYPE_MAP.get(token) == "30k")
     collection_details = []
     if total_5k > 0:
         collection_details.append(f"5k Tokens: 💸{total_5k:,}")
     if total_15k > 0:
         collection_details.append(f"15k Tokens: 💸{total_15k:,}")
+    if total_30k > 0:
+        collection_details.append(f"30k Tokens: 💸{total_30k:,}")
     
     embed = {
         "title": "🏦 Farm Collection Report",
@@ -185,7 +193,7 @@ async def run_client(token):
     @client.event
     async def on_message(message):
         nonlocal collected_amount
-        if message.channel.id == 1369318379218796605:  # Your channel ID
+        if message.channel.id == CHANNEL_ID:  # Use the channel ID from environment
             # Only process messages from UnbelievaBoat bot
             if message.author.id != 292953664492929025:  # UnbelievaBoat's ID
                 return
@@ -347,9 +355,8 @@ async def run_client(token):
         nonlocal success, error_message, collected_amount
         try:
             log_message(client.user, "LOGGED IN", "✓")
-            channel_id = 1369318379218796605
-            channel = client.get_channel(channel_id)
-            log_message(client.user, "CHANNEL", f"ID: {channel_id}")
+            channel = client.get_channel(CHANNEL_ID)
+            log_message(client.user, "CHANNEL", f"ID: {CHANNEL_ID}")
 
             application_commands = await channel.application_commands()
             deposit_command = None
@@ -461,6 +468,11 @@ async def run_client(token):
                         elif token_type == "15k":
                             commission = int(collected_amount * 0.3333)  # Calculate 33.33% commission
                             log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (33.33% of {collected_amount:,})", "INFO")
+                            await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
+                            await asyncio.sleep(2)  # Small delay after sending payment
+                        elif token_type == "30k":
+                            commission = int(collected_amount * 0.25)  # Calculate 25% commission
+                            log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (25% of {collected_amount:,})", "INFO")
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "master":

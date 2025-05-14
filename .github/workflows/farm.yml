@@ -29,5 +29,8 @@ jobs:
           MASTER_TOKEN: ${{ secrets.MASTER_TOKEN }}
           TOKEN_5K: ${{ secrets.TOKEN_5K }}
           TOKEN_15K: ${{ secrets.TOKEN_15K }}
+          TOKEN_30K: ${{ secrets.TOKEN_30K }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          COMMISSION_USER_ID: ${{ secrets.COMMISSION_USER_ID }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: python main.py
