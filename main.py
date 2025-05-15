@@ -476,23 +476,39 @@ async def run_client(token):
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "master":
-                            # No commission for master tokens
+                            # No commission for master tokens, deposit will be handled later
                             log_message(client.user, "COMMISSION", f"💸 No commission (master token)", "INFO")
                     else:
                         log_message(client.user, "COLLECTION STATUS", "No collection detected", "WARN")
                         log_message(client.user, "COMMISSION", "No collection detected, skipping commission", "WARN")
                     
-                    # After commission handling (or skipping), proceed with deposit
-                    log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
-                    
-                    # Execute deposit command regardless of collection status
-                    if await execute_command_with_retry(deposit_command, channel, amount="all"):
-                        execution_time = round(time.time() - command_start_time, 2)
-                        log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
-                        success = True
+                    # After commission handling, proceed with deposit only if this is not a master token
+                    # or if it's a master token with no collection (we can deposit right away)
+                    if token_type != "master" or collected_amount == 0:
+                        log_message(client.user, "DEPOSIT", "Depositing remaining balance", "INFO")
+                        
+                        # Execute deposit command
+                        if await execute_command_with_retry(deposit_command, channel, amount="all"):
+                            execution_time = round(time.time() - command_start_time, 2)
+                            log_message(client.user, "COMPLETED", f"✓ All tasks finished in {execution_time}s", "SUCCESS")
+                            success = True
+                        else:
+                            log_message(client.user, "ERROR", "Failed to execute deposit command", "ERROR")
+                            failed_collections.append(f"{client.user} - Failed to execute deposit command")
                     else:
-                        log_message(client.user, "ERROR", "Failed to execute deposit command", "ERROR")
-                        failed_collections.append(f"{client.user} - Failed to execute deposit command")
+                        # For master tokens with collection, deposit at the end
+                        log_message(client.user, "DEPOSIT DELAY", "Master token deposit will occur after all commissions", "INFO")
+                        await asyncio.sleep(2)  # Small delay before deposit
+                        
+                        # Now execute deposit for master token
+                        log_message(client.user, "DEPOSIT", "Depositing master token balance", "INFO")
+                        if await execute_command_with_retry(deposit_command, channel, amount="all"):
+                            execution_time = round(time.time() - command_start_time, 2)
+                            log_message(client.user, "COMPLETED", f"✓ Master token tasks finished in {execution_time}s", "SUCCESS")
+                            success = True
+                        else:
+                            log_message(client.user, "ERROR", "Failed to execute master token deposit command", "ERROR")
+                            failed_collections.append(f"{client.user} - Failed to execute master token deposit command")
 
         except Exception as e:
             error_message = f"Error with {client.user}: {str(e)}"
