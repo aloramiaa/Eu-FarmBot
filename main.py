@@ -339,39 +339,30 @@ async def run_client(token):
                             log_message(client.user, "DEBUG", f"Found collection success message!", "DEBUG")
                             cash_amounts = []
                             
-                            # Parse successful collection amounts for all formats
+                            # Parse successful collection amounts for the new format
                             for line in embed_description.split('\n'):
                                 # Skip empty lines and the success message line
                                 if not line.strip() or "Role income successfully collected!" in line:
                                     continue
                                     
                                 try:
-                                    # Check if line matches the format: "number - @Role Amount (cash)"
-                                    if ' - @' in line and '(cash)' in line:
-                                        # Extract the amount before (cash)
-                                        amount_str = line.split('(cash)')[0].strip()
-                                        # Get the last word which should be the amount
-                                        amount_str = amount_str.split()[-1]
+                                    # New format: `1` - <somerole id> <:europa_rp:1144393670053875772>25,000 (cash)
+                                    if ('`' in line or ' - <') and '<:europa_rp:' in line and '(cash)' in line:
+                                        # Extract the amount between the emoji and (cash)
+                                        emoji_id = '1144393670053875772'  # The specific Europa RP emoji ID
+                                        amount_str = line.split(f'<:europa_rp:{emoji_id}>')[1].split('(cash)')[0].strip()
                                         # Clean and parse the amount
                                         amount = int(amount_str.replace(',', ''))
                                         cash_amounts.append(amount)
-                                        log_message(client.user, "DEBUG", f"Parsed amount (clean format): {amount:,}", "DEBUG")
+                                        log_message(client.user, "DEBUG", f"Parsed amount (new format): {amount:,}", "DEBUG")
                                         continue
 
-                                    # Try the format with backticks and emoji
-                                    if '`' in line and ':europa_rp~2:' in line and '(cash)' in line:
+                                    # Fallback to old format with :europa_rp~2:
+                                    elif ':europa_rp~2:' in line and '(cash)' in line:
                                         amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                         amount = int(amount_str.replace(',', ''))
                                         cash_amounts.append(amount)
-                                        log_message(client.user, "DEBUG", f"Parsed amount (emoji format 1): {amount:,}", "DEBUG")
-                                        continue
-                                    
-                                    # Try the format with @ symbol and emoji
-                                    if '@' in line and ':europa_rp~2:' in line and '(cash)' in line:
-                                        amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
-                                        amount = int(amount_str.replace(',', ''))
-                                        cash_amounts.append(amount)
-                                        log_message(client.user, "DEBUG", f"Parsed amount (emoji format 2): {amount:,}", "DEBUG")
+                                        log_message(client.user, "DEBUG", f"Parsed amount (old format): {amount:,}", "DEBUG")
                                         continue
                                     
                                 except Exception as e:
@@ -504,18 +495,28 @@ async def run_client(token):
                                             # Check if it's a collection message
                                             if embed.description and "Role income successfully collected!" in embed.description:
                                                 log_message(client.user, "DEBUG", f"Found collection message in history", "DEBUG")
-                                                # Process this message as our collection message
+                                                                    # Process this message as our collection message
                                                 cash_amounts = []
                                                 for line in embed.description.split('\n'):
-                                                    if ('`' in line or '@' in line) and ':europa_rp~2:' in line and '(cash)' in line:
-                                                        try:
+                                                    try:
+                                                        # New format with specific emoji ID
+                                                        if ('`' in line or ' - <') and '<:europa_rp:1144393670053875772>' in line and '(cash)' in line:
+                                                            amount_str = line.split('<:europa_rp:1144393670053875772>')[1].split('(cash)')[0].strip()
+                                                            amount = int(amount_str.replace(',', ''))
+                                                            cash_amounts.append(amount)
+                                                            log_message(client.user, "DEBUG", f"Recovered amount (new format): {amount:,}", "DEBUG")
+                                                            continue
+                                                        
+                                                        # Fallback to old format
+                                                        elif ':europa_rp~2:' in line and '(cash)' in line:
                                                             amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                                             amount = int(amount_str.replace(',', ''))
                                                             cash_amounts.append(amount)
-                                                            log_message(client.user, "DEBUG", f"Recovered amount: {amount:,}", "DEBUG")
-                                                        except Exception as e:
-                                                            log_message(client.user, "ERROR", f"Failed to parse recovered amount: {e}", "DEBUG")
+                                                            log_message(client.user, "DEBUG", f"Recovered amount (old format): {amount:,}", "DEBUG")
                                                             continue
+                                                    except Exception as e:
+                                                        log_message(client.user, "ERROR", f"Failed to parse recovered amount: {e}", "DEBUG")
+                                                        continue
                                                 
                                                 if cash_amounts:
                                                     collected_amount = sum(cash_amounts)
