@@ -386,8 +386,11 @@ async def run_client(token):
 
             # Process regular messages if needed
             if message_content:
-                if str(client.user) in message_content and "You can collect income again" in message_content:
-                    is_response_for_user = True
+                username = str(client.user)
+                if username in message_content and "You can collect income again" in message_content:
+                    # Verify this message is actually for this user
+                    if username in message_content.split('\n')[0]:  # Check first line contains username
+                        is_response_for_user = True
                     collected_amount = 0                            # Format each line of the message for better readability
                     formatted_message = []
                     for line in message_content.split('\n'):
@@ -527,8 +530,9 @@ async def run_client(token):
                                                     break  # Stop processing once we find a valid collection
                                         
                                         # If we still haven't found a collection amount, check for deposit messages
-                                        if collected_amount == 0 and embed.author and str(client.user) == embed.author.name:
-                                            if embed.description and "Deposited" in embed.description:
+                                        username = str(client.user)
+                                        if collected_amount == 0 and ((embed.author and username == embed.author.name) or (embed.description and username in embed.description)):
+                                            if embed.description and "Deposited" in embed.description and username in embed.description:
                                                 # If we find a deposit message and didn't detect collection, try to recover from deposit amount
                                                 try:
                                                     if ':europa_rp~2:' in embed.description and 'to your bank' in embed.description:
