@@ -42,7 +42,7 @@ TOKEN_TYPE_MAP.update({
 
 TOKENS = list(TOKEN_TYPE_MAP.keys())
 COMMISSION_USER_ID = int(os.getenv("COMMISSION_USER_ID", "1236292707371057216"))  # Default to @aloramiaa if not specified
-CLIENT_TIMEOUT = 120  # Timeout in seconds
+CLIENT_TIMEOUT = 240  # Timeout in seconds (4 minutes)
 
 async def execute_command_with_retry(command, channel, **kwargs):
     max_retries = 3
