@@ -498,13 +498,14 @@ async def run_client(token):
                                                                     # Process this message as our collection message
                                                 cash_amounts = []
                                                 for line in embed.description.split('\n'):
-                                                    try:                                        # New format with specific emoji ID and role ID format <@&ROLEID>
-                                        if ('`' in line or ' - <@&') and '<:europa_rp:1144393670053875772>' in line and '(cash)' in line:
-                                            amount_str = line.split('<:europa_rp:1144393670053875772>')[1].split('(cash)')[0].strip()
-                                            amount = int(amount_str.replace(',', ''))
-                                            cash_amounts.append(amount)
-                                            log_message(client.user, "DEBUG", f"Recovered amount (new format): {amount:,}", "DEBUG")
-                                            continue
+                                                    try:
+                                                        # New format with specific emoji ID and role ID format <@&ROLEID>
+                                                        if ('`' in line or ' - <@&') and '<:europa_rp:1144393670053875772>' in line and '(cash)' in line:
+                                                            amount_str = line.split('<:europa_rp:1144393670053875772>')[1].split('(cash)')[0].strip()
+                                                            amount = int(amount_str.replace(',', ''))
+                                                            cash_amounts.append(amount)
+                                                            log_message(client.user, "DEBUG", f"Recovered amount (new format): {amount:,}", "DEBUG")
+                                                            continue
                                                         
                                                         # Fallback to old format
                                                         elif ':europa_rp~2:' in line and '(cash)' in line:
