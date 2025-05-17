@@ -46,3 +46,8 @@ jobs:
           COMMISSION_USER_ID: ${{ secrets.COMMISSION_USER_ID }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: python main.py
+
+      # Step 5: Keep render service alive
+      - name: Ping render service
+        run: |
+          curl -s https://workflow-trigger.onrender.com
