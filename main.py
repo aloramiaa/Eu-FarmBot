@@ -78,65 +78,90 @@ async def send_webhook_update(success_count, total_count, error_messages=None):
     total_30k = sum(amount for token, amount in token_collections.items() if TOKEN_TYPE_MAP.get(token) == "30k")
     collection_details = []
     if total_5k > 0:
-        collection_details.append(f"5k Tokens: 💸{total_5k:,}")
+        collection_details.append(f"5k Tokens: :europa_rp~2:{total_5k:,}")
     if total_15k > 0:
-        collection_details.append(f"15k Tokens: 💸{total_15k:,}")
+        collection_details.append(f"15k Tokens: :europa_rp~2:{total_15k:,}")
     if total_30k > 0:
-        collection_details.append(f"30k Tokens: 💸{total_30k:,}")
+        collection_details.append(f"30k Tokens: :europa_rp~2:{total_30k:,}")
+    
+    # Calculate success rate percentage
+    success_rate = (success_count / total_count * 100) if total_count > 0 else 0
+    status_color = "\u001b[2;32m" if success_rate > 85 else "\u001b[2;33m" if success_rate > 60 else "\u001b[2;31m"
     
     embed = {
-        "title": "🏦 Farm Collection Report",
-        "color": 0x00ff00 if not error_messages else 0xff0000,
+        "title": "╔══・👑 Europa Farm Report ・══╗",
+        "description": f"```ansi\n\u001b[2;36m┌─────────────── Stats Overview ───────────────┐\u001b[0m\n\u001b[2;37m│\u001b[0m Success Rate: {status_color}{success_rate:.1f}%\u001b[0m\n\u001b[2;37m│\u001b[0m Session Duration: \u001b[2;33m{duration:.1f}s\u001b[0m\n\u001b[2;37m│\u001b[0m Active Tokens: \u001b[2;36m{total_count}\u001b[0m\n\u001b[2;36m└───────────────────────────────────────────┘\u001b[0m```",
+        "color": 0x2b2d31,  # Discord dark theme color
         "fields": [
             {
-                "name": "Status",
-                "value": f"✅ Successfully processed: {success_count}/{total_count} accounts",
+                "name": "📊 Collection Status",
+                "value": f"```ansi\n{status_color}✓ {success_count}/{total_count}\u001b[0m accounts processed\n\u001b[2;37m⮑\u001b[0m Current Session: \u001b[2;36m{dt.now().strftime('%I:%M %p')}\u001b[0m```",
                 "inline": True
             },
             {
-                "name": "Runtime",
-                "value": f"⏱️ {duration} seconds",
-                "inline": True
-            },
-            {
-                "name": "Timestamp",
-                "value": f"🕒 {current_time}",
+                "name": "⚡ Performance",
+                "value": f"```ansi\n\u001b[2;33m⌛ {(duration/total_count):.1f}s\u001b[0m per account\n\u001b[2;37m⮑\u001b[0m Started: \u001b[2;36m{dt.fromtimestamp(START_TIME).strftime('%I:%M %p')}\u001b[0m```",
                 "inline": True
             }
         ],
         "footer": {
-            "text": f"Farm Collection Bot • {current_time}"
+            "text": f"Europa Farm Bot • Session {current_time}"
         }
     }
 
     # Add collection details if any
     if collection_details:
+        # Calculate total amount across all token types
+        total_amount = total_5k + total_15k + total_30k
+        collection_header = f"\u001b[2;36m┌─────────── Collection Analytics ───────────┐\u001b[0m\n"
+        collection_details_formatted = []
+        
+        if total_5k > 0:
+            collection_details_formatted.append(f"\u001b[2;37m│\u001b[0m 5k Tokens   ➜ :europa_rp~2:\u001b[2;33m{total_5k:,}\u001b[0m")
+        if total_15k > 0:
+            collection_details_formatted.append(f"\u001b[2;37m│\u001b[0m 15k Tokens  ➜ :europa_rp~2:\u001b[2;33m{total_15k:,}\u001b[0m")
+        if total_30k > 0:
+            collection_details_formatted.append(f"\u001b[2;37m│\u001b[0m 30k Tokens  ➜ :europa_rp~2:\u001b[2;33m{total_30k:,}\u001b[0m")
+        
+        collection_footer = f"\u001b[2;37m│\u001b[0m Total      ➜ :europa_rp~2:\u001b[2;32m{total_amount:,}\u001b[0m\n\u001b[2;36m└────────────────────────────────────────┘\u001b[0m"
+        
         embed["fields"].append({
-            "name": "💰 Total Collections",
-            "value": "\n".join(collection_details),
+            "name": "💰 Collection Analytics",
+            "value": f"```ansi\n{collection_header}{chr(10).join(collection_details_formatted)}\n{collection_footer}```",
             "inline": False
         })
 
     # Add collect again messages if any
     if collect_again_messages:
+        formatted_delays = []
+        for msg in collect_again_messages:
+            # Remove the ```username part and ending ```
+            clean_msg = msg.replace("```", "").split("\n", 1)[1]
+            formatted_delays.append(f"❯ {clean_msg}")
+            
         embed["fields"].append({
-            "name": "⏳ Collection Delays",
-            "value": "\n".join(collect_again_messages),
+            "name": "⌛ Collection Cooldowns",
+            "value": f"```ansi\n\u001b[2;31m{chr(10).join(formatted_delays)}\u001b[0m```",
             "inline": False
         })
     
     # Add failed collections if any
     if failed_collections:
+        fails_header = "\u001b[2;36m┌─────────── Failed Operations ───────────┐\u001b[0m\n"
+        formatted_fails = [f"\u001b[2;37m│\u001b[0m ❌ {fail}" for fail in failed_collections]
+        fails_footer = "\u001b[2;36m└────────────────────────────────────────┘\u001b[0m"
+        
         embed["fields"].append({
-            "name": "❌ Failed Collections",
-            "value": "\n".join(failed_collections),
+            "name": "⚠️ Error Report",
+            "value": f"```ansi\n{fails_header}{chr(10).join(formatted_fails)}\n{fails_footer}```",
             "inline": False
         })
     
     if error_messages:
+        formatted_errors = [f"❯ {error}" for error in error_messages]
         embed["fields"].append({
-            "name": "⚠️ Errors",
-            "value": "\n".join(error_messages),
+            "name": "⚠️ Error Log",
+            "value": f"```ansi\n\u001b[2;33m{chr(10).join(formatted_errors)}\u001b[0m```",
             "inline": False
         })
     
@@ -276,30 +301,44 @@ async def run_client(token):
                             log_message(client.user, "DEBUG", f"Found collection success message!", "DEBUG")
                             cash_amounts = []
                             
-                            # Parse successful collection amounts for format with backticks
+                            # Parse successful collection amounts for all formats
                             for line in embed_description.split('\n'):
-                                if '`' in line and ':europa_rp~2:' in line and '(cash)' in line:
-                                    try:
+                                # Skip empty lines and the success message line
+                                if not line.strip() or "Role income successfully collected!" in line:
+                                    continue
+                                    
+                                try:
+                                    # Check if line matches the format: "number - @Role Amount (cash)"
+                                    if ' - @' in line and '(cash)' in line:
+                                        # Extract the amount before (cash)
+                                        amount_str = line.split('(cash)')[0].strip()
+                                        # Get the last word which should be the amount
+                                        amount_str = amount_str.split()[-1]
+                                        # Clean and parse the amount
+                                        amount = int(amount_str.replace(',', ''))
+                                        cash_amounts.append(amount)
+                                        log_message(client.user, "DEBUG", f"Parsed amount (clean format): {amount:,}", "DEBUG")
+                                        continue
+
+                                    # Try the format with backticks and emoji
+                                    if '`' in line and ':europa_rp~2:' in line and '(cash)' in line:
                                         amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                         amount = int(amount_str.replace(',', ''))
                                         cash_amounts.append(amount)
-                                        log_message(client.user, "DEBUG", f"Parsed amount (format 1): {amount:,}", "DEBUG")
-                                    except Exception as e:
-                                        log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
+                                        log_message(client.user, "DEBUG", f"Parsed amount (emoji format 1): {amount:,}", "DEBUG")
                                         continue
-                            
-                            # Parse successful collection amounts for format with @ symbol
-                            if not cash_amounts:
-                                for line in embed_description.split('\n'):
+                                    
+                                    # Try the format with @ symbol and emoji
                                     if '@' in line and ':europa_rp~2:' in line and '(cash)' in line:
-                                        try:
-                                            amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
-                                            amount = int(amount_str.replace(',', ''))
-                                            cash_amounts.append(amount)
-                                            log_message(client.user, "DEBUG", f"Parsed amount (format 2): {amount:,}", "DEBUG")
-                                        except Exception as e:
-                                            log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
-                                            continue
+                                        amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
+                                        amount = int(amount_str.replace(',', ''))
+                                        cash_amounts.append(amount)
+                                        log_message(client.user, "DEBUG", f"Parsed amount (emoji format 2): {amount:,}", "DEBUG")
+                                        continue
+                                    
+                                except Exception as e:
+                                    log_message(client.user, "ERROR", f"Failed to parse amount from line: {line} - {str(e)}", "DEBUG")
+                                    continue
                             
                             collected_amount = sum(cash_amounts)
                             token_collections[token] = collected_amount
