@@ -262,9 +262,10 @@ async def run_client(token):
                     
                 # For collection response, check if the message is for this user
                 if embed_author_name and embed_description:
-                    # Only process if the message is for this user
-                    if str(client.user) == embed_author_name:
-                        log_message(client.user, "DEBUG", f"Processing embed for {client.user}", "DEBUG")
+                    # Only process if the message is for this user and contains the username
+                    username = str(client.user)
+                    if username == embed_author_name or username in embed_description:
+                        log_message(client.user, "DEBUG", f"Processing embed for {username}", "DEBUG")
                         
                         # Check for various response types
                         if "<:stopwatch:" in embed_description and "You can next work" in embed_description:
@@ -489,11 +490,12 @@ async def run_client(token):
                                 if msg.author.id == 292953664492929025 and msg.embeds:  # UnbelievaBoat's ID
                                     for embed in msg.embeds:
                                         # Check if this embed is for the current user
-                                        if embed.author and str(client.user) == embed.author.name:
+                                        username = str(client.user)
+                                        if (embed.author and username == embed.author.name) or (embed.description and username in embed.description):
                                             log_message(client.user, "DEBUG", f"Found message for current user", "DEBUG")
                                             
                                             # Check if it's a collection message
-                                            if embed.description and "Role income successfully collected!" in embed.description:
+                                            if embed.description and "Role income successfully collected!" in embed.description and username in embed.description:
                                                 log_message(client.user, "DEBUG", f"Found collection message in history", "DEBUG")
                                                                     # Process this message as our collection message
                                                 cash_amounts = []
