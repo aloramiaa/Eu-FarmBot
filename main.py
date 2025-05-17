@@ -136,14 +136,29 @@ async def send_webhook_update(success_count, total_count, error_messages=None):
         formatted_delays = []
         for msg in collect_again_messages:
             # Remove the ```username part and ending ```
-            clean_msg = msg.replace("```", "").split("\n", 1)[1]
-            formatted_delays.append(f"❯ {clean_msg}")
+            parts = msg.replace("```", "").split("\n", 1)
+            if len(parts) > 1:
+                username = parts[0].strip()
+                cooldowns = parts[1].strip().split("\n")
+                
+                # Format each cooldown line with proper indentation
+                cooldown_lines = []
+                for cooldown in cooldowns:
+                    if cooldown.startswith("General Cooldown:"):
+                        cooldown_lines.append(f"\u001b[2;37m│\u001b[0m {username}: {cooldown}")
+                    else:
+                        cooldown_lines.append(f"\u001b[2;37m│\u001b[0m {username} | {cooldown}")
+                formatted_delays.extend(cooldown_lines)
+        
+        if formatted_delays:
+            cooldown_header = "\u001b[2;36m┌─────────── Collection Cooldowns ───────────┐\u001b[0m\n"
+            cooldown_footer = "\u001b[2;36m└────────────────────────────────────────┘\u001b[0m"
             
-        embed["fields"].append({
-            "name": "⌛ Collection Cooldowns",
-            "value": f"```ansi\n\u001b[2;31m{chr(10).join(formatted_delays)}\u001b[0m```",
-            "inline": False
-        })
+            embed["fields"].append({
+                "name": "⌛ Collection Cooldowns",
+                "value": f"```ansi\n{cooldown_header}{chr(10).join(formatted_delays)}\n{cooldown_footer}```",
+                "inline": False
+            })
     
     # Add failed collections if any
     if failed_collections:
@@ -242,8 +257,8 @@ async def run_client(token):
                 
                 # Log all embeds for debugging
                 if embed_author_name and embed_description:
-                    first_line = embed_description.split('\n')[0] if embed_description else 'None'
-                    log_message(client.user, "DEBUG", f"Embed - Author: {embed_author_name}, First line: {first_line}", "DEBUG")
+                    # Log the full embed message content
+                    log_message(client.user, "DEBUG", f"Received embed from {embed_author_name}:\n{embed_description}", "DEBUG")
                     
                 # For collection response, check if the message is for this user
                 if embed_author_name and embed_description:
@@ -256,31 +271,54 @@ async def run_client(token):
                             is_response_for_user = True
                             message_received.set()
                             return
-                        elif "<:xmark:" in embed_description and "You can collect income again" in embed_description:
+                        elif "You can collect income again" in embed_description:
                             is_response_for_user = True
                             collected_amount = 0
                             
                             # Parse delay times with proper formatting
                             formatted_message = []
+                            
+                            # First try to get the general cooldown from the first line
+                            first_line = embed_description.split('\n')[0]
+                            if "You can collect income again" in first_line:
+                                formatted_message.append(f"General Cooldown: {first_line.split('in')[-1].strip()}")
+                            
                             for line in embed_description.split('\n'):
-                                if '<@&' in line and ':europa_rp~2:' in line and '(cash)' in line:
-                                    try:
+                                # Skip empty lines or the header
+                                if not line.strip() or "You can collect income again" in line:
+                                    continue
+                                    
+                                try:
+                                    # Check if this is a role delay line in any format
+                                    if ' - @' in line and '(cash) in' in line:
                                         # Extract role number (e.g., "1 - ")
                                         role_num = line.split(' - ')[0].strip()
                                         
-                                        # Extract amount between :europa_rp~2: and (cash)
-                                        amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
+                                        # Extract role name
+                                        role_name = line.split(' - @')[1].split('(cash)')[0].strip()
                                         
-                                        # Extract timestamp from Discord format <t:1234567890:R>
-                                        timestamp_str = line.split('<t:')[1].split(':R>')[0].strip()
+                                        # Extract delay time
+                                        if 'in' in line:
+                                            delay_time = line.split('in')[-1].strip()
+                                        else:
+                                            delay_time = "unknown time"
                                         
-                                        # Convert Unix timestamp to readable format
-                                        readable_time = dt.fromtimestamp(int(timestamp_str)).strftime("%Y-%m-%d %H:%M:%S")
+                                        # Try to extract amount - first check for emoji format
+                                        if ':europa_rp~2:' in line:
+                                            amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
+                                        else:
+                                            # Extract amount as the last number before (cash)
+                                            parts = line.split('(cash)')[0].strip().split()
+                                            amount_str = next((part for part in reversed(parts) 
+                                                             if part.replace(',', '').isdigit()), '0')
                                         
-                                        formatted_message.append(f"{role_num} - available at {readable_time} - :europa_rp~2:{amount_str}")
-                                    except Exception as e:
-                                        log_message(client.user, "ERROR", f"Failed to parse delay line: {line} - {str(e)}", "DEBUG")
-                                        continue
+                                        # Format the message
+                                        formatted_message.append(
+                                            f"{role_num} - @{role_name} - {amount_str} available in {delay_time}"
+                                        )
+                                except Exception as e:
+                                    log_message(client.user, "ERROR", f"Failed to parse delay line: {line} - {str(e)}", "DEBUG")
+                                    continue
                         
                             collect_again_messages.append(f"```{client.user}\n" + "\n".join(formatted_message) + "```")
                             
@@ -358,35 +396,48 @@ async def run_client(token):
             if message_content:
                 if str(client.user) in message_content and "You can collect income again" in message_content:
                     is_response_for_user = True
-                    collected_amount = 0
-                    # Format each line of the message for better readability
+                    collected_amount = 0                            # Format each line of the message for better readability
                     formatted_message = []
                     for line in message_content.split('\n'):
-                        if line.strip():  # Only process non-empty lines
-                            if '(cash) in' in line and '<t:' in line:
-                                try:
-                                    # Extract parts
-                                    parts = line.split('|')
-                                    if len(parts) == 2:
-                                        role_num = parts[0].strip()
-                                        income_info = parts[1].strip()
-                                        
-                                        # Extract timestamp if present
-                                        if '<t:' in income_info:
-                                            timestamp_str = income_info.split('<t:')[1].split(':R>')[0].strip()
-                                            readable_time = dt.fromtimestamp(int(timestamp_str)).strftime("%Y-%m-%d %H:%M:%S")
-                                            income_info = income_info.replace(f"<t:{timestamp_str}:R>", readable_time)
-                                        
-                                        formatted_message.append(f"{role_num} | {income_info}")
-                                except Exception:
-                                    # If parsing fails, just use the original line
-                                    formatted_message.append(line.strip())
-                            else:
-                                # This is the header line or other info
-                                formatted_message.append(line.strip())
+                        if not line.strip():  # Skip empty lines
+                            continue
+                            
+                        # First line is usually the general cooldown message
+                        if "You can collect income again" in line:
+                            cooldown = line.split("in")[-1].strip() if "in" in line else "unknown time"
+                            formatted_message.append(f"General Cooldown: {cooldown}")
+                            continue
+                            
+                        # Role-specific cooldown lines
+                        if ' - @' in line and '(cash)' in line:
+                            try:
+                                # Extract role number (e.g., "1 - ")
+                                role_num = line.split(' - ')[0].strip()
+                                
+                                # Extract role name
+                                role_info = line.split(' - @')[1]
+                                role_name = role_info.split('(cash)')[0].strip()
+                                
+                                # Extract amount - look for the number before (cash)
+                                amount = "0"
+                                parts = role_info.split('(cash)')[0].strip().split()
+                                for part in reversed(parts):
+                                    if part.replace(',', '').isdigit():
+                                        amount = part
+                                        break
+                                
+                                # Extract delay time
+                                delay = line.split('in')[-1].strip() if 'in' in line else "unknown time"
+                                
+                                formatted_message.append(f"{role_num} - @{role_name} - {amount} available in {delay}")
+                            except Exception as e:
+                                # If parsing fails, just use the original line but clean it up
+                                clean_line = line.strip()
+                                if clean_line:
+                                    formatted_message.append(clean_line)
                     
                     collect_again_messages.append(f"```{client.user}\n" + "\n".join(formatted_message) + "```")
-                    log_message(client.user, "COLLECT DELAY", f"➜ Roles available in: {message_content.strip()}", "WARN")
+                    log_message(client.user, "COLLECT DELAY", f"Roles available:\n{message_content}", "WARN")
                     message_received.set()
 
     @client.event
