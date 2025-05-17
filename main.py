@@ -238,13 +238,13 @@ async def run_client(token):
                             # Parse delay times with proper formatting
                             formatted_message = []
                             for line in embed_description.split('\n'):
-                                if '<@&' in line and '💸' in line and '(cash)' in line:
+                                if '<@&' in line and ':europa_rp~2:' in line and '(cash)' in line:
                                     try:
                                         # Extract role number (e.g., "1 - ")
                                         role_num = line.split(' - ')[0].strip()
                                         
-                                        # Extract amount between 💸 and (cash)
-                                        amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                        # Extract amount between :europa_rp~2: and (cash)
+                                        amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                         
                                         # Extract timestamp from Discord format <t:1234567890:R>
                                         timestamp_str = line.split('<t:')[1].split(':R>')[0].strip()
@@ -252,7 +252,7 @@ async def run_client(token):
                                         # Convert Unix timestamp to readable format
                                         readable_time = dt.fromtimestamp(int(timestamp_str)).strftime("%Y-%m-%d %H:%M:%S")
                                         
-                                        formatted_message.append(f"{role_num} - available at {readable_time} - 💸{amount_str}")
+                                        formatted_message.append(f"{role_num} - available at {readable_time} - :europa_rp~2:{amount_str}")
                                     except Exception as e:
                                         log_message(client.user, "ERROR", f"Failed to parse delay line: {line} - {str(e)}", "DEBUG")
                                         continue
@@ -260,7 +260,7 @@ async def run_client(token):
                             collect_again_messages.append(f"```{client.user}\n" + "\n".join(formatted_message) + "```")
                             
                             # Get first role's delay using new parsing method
-                            first_line = next((line for line in embed_description.split('\n') if '<@&' in line and '💸' in line), None)
+                            first_line = next((line for line in embed_description.split('\n') if '<@&' in line and ':europa_rp~2:' in line), None)
                             if first_line:
                                 try:
                                     timestamp_str = first_line.split('<t:')[1].split(':R>')[0].strip()
@@ -278,9 +278,9 @@ async def run_client(token):
                             
                             # Parse successful collection amounts for format with backticks
                             for line in embed_description.split('\n'):
-                                if '`' in line and '💸' in line and '(cash)' in line:
+                                if '`' in line and ':europa_rp~2:' in line and '(cash)' in line:
                                     try:
-                                        amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                        amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                         amount = int(amount_str.replace(',', ''))
                                         cash_amounts.append(amount)
                                         log_message(client.user, "DEBUG", f"Parsed amount (format 1): {amount:,}", "DEBUG")
@@ -291,9 +291,9 @@ async def run_client(token):
                             # Parse successful collection amounts for format with @ symbol
                             if not cash_amounts:
                                 for line in embed_description.split('\n'):
-                                    if '@' in line and '💸' in line and '(cash)' in line:
+                                    if '@' in line and ':europa_rp~2:' in line and '(cash)' in line:
                                         try:
-                                            amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                            amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                             amount = int(amount_str.replace(',', ''))
                                             cash_amounts.append(amount)
                                             log_message(client.user, "DEBUG", f"Parsed amount (format 2): {amount:,}", "DEBUG")
@@ -303,7 +303,7 @@ async def run_client(token):
                             
                             collected_amount = sum(cash_amounts)
                             token_collections[token] = collected_amount
-                            log_message(client.user, "COLLECTED", f"💰 {collected_amount:,} cash from {len(cash_amounts)} roles", "SUCCESS")
+                            log_message(client.user, "COLLECTED", f"💸 {collected_amount:,} cash from {len(cash_amounts)} roles", "SUCCESS")
                             message_received.set()
                             return
                         elif "<:check:" in embed_description and "Deposited" in embed_description:
@@ -417,9 +417,9 @@ async def run_client(token):
                                                 # Process this message as our collection message
                                                 cash_amounts = []
                                                 for line in embed.description.split('\n'):
-                                                    if ('`' in line or '@' in line) and '💸' in line and '(cash)' in line:
+                                                    if ('`' in line or '@' in line) and ':europa_rp~2:' in line and '(cash)' in line:
                                                         try:
-                                                            amount_str = line.split('💸')[1].split('(cash)')[0].strip()
+                                                            amount_str = line.split(':europa_rp~2:')[1].split('(cash)')[0].strip()
                                                             amount = int(amount_str.replace(',', ''))
                                                             cash_amounts.append(amount)
                                                             log_message(client.user, "DEBUG", f"Recovered amount: {amount:,}", "DEBUG")
@@ -430,7 +430,7 @@ async def run_client(token):
                                                 if cash_amounts:
                                                     collected_amount = sum(cash_amounts)
                                                     token_collections[token] = collected_amount
-                                                    log_message(client.user, "RECOVERED", f"Found collection: 💸{collected_amount:,}", "SUCCESS")
+                                                    log_message(client.user, "RECOVERED", f"Found collection: :europa_rp~2:{collected_amount:,}", "SUCCESS")
                                                     break  # Stop processing once we find a valid collection
                                         
                                         # If we still haven't found a collection amount, check for deposit messages
@@ -438,8 +438,8 @@ async def run_client(token):
                                             if embed.description and "Deposited" in embed.description:
                                                 # If we find a deposit message and didn't detect collection, try to recover from deposit amount
                                                 try:
-                                                    if '💸' in embed.description and 'to your bank' in embed.description:
-                                                        deposit_str = embed.description.split('💸')[1].split('to')[0].strip()
+                                                    if ':europa_rp~2:' in embed.description and 'to your bank' in embed.description:
+                                                        deposit_str = embed.description.split(':europa_rp~2:')[1].split('to')[0].strip()
                                                         deposit_amount = int(deposit_str.replace(',', ''))
                                                         if deposit_amount > 0:
                                                             collected_amount = deposit_amount
@@ -454,12 +454,14 @@ async def run_client(token):
                     # Add a small delay to ensure all messages are processed
                     await asyncio.sleep(1)
                     
+                    # Get token type before processing collection
+                    token_type = TOKEN_TYPE_MAP.get(token)
+                    
                     # Log the final collection status
                     if collected_amount > 0:
                         log_message(client.user, "COLLECTION STATUS", f"Final collection amount: 💸{collected_amount:,}", "SUCCESS")
                         
                         # Only process commissions if we collected an amount
-                        token_type = TOKEN_TYPE_MAP.get(token)
                         if token_type == "5k":
                             commission = int(collected_amount * 0.25)  # Calculate 25% commission
                             log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (25% of {collected_amount:,})", "INFO")
@@ -467,17 +469,17 @@ async def run_client(token):
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "15k":
                             commission = int(collected_amount * 0.3333)  # Calculate 33.33% commission
-                            log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (33.33% of {collected_amount:,})", "INFO")
+                            log_message(client.user, "COMMISSION", f":europa_rp~2: Sending {commission:,} (33.33% of {collected_amount:,})", "INFO")
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "30k":
                             commission = int(collected_amount * 0.30)  # Calculate 30% commission
-                            log_message(client.user, "COMMISSION", f"💸 Sending {commission:,} (30% of {collected_amount:,})", "INFO")
+                            log_message(client.user, "COMMISSION", f":europa_rp~2: Sending {commission:,} (30% of {collected_amount:,})", "INFO")
                             await channel.send(f"-pay <@{COMMISSION_USER_ID}> {commission}")
                             await asyncio.sleep(2)  # Small delay after sending payment
                         elif token_type == "master":
                             # No commission for master tokens, deposit will be handled later
-                            log_message(client.user, "COMMISSION", f"💸 No commission (master token)", "INFO")
+                            log_message(client.user, "COMMISSION", f":europa_rp~2: No commission (master token)", "INFO")
                     else:
                         log_message(client.user, "COLLECTION STATUS", "No collection detected", "WARN")
                         log_message(client.user, "COMMISSION", "No collection detected, skipping commission", "WARN")
