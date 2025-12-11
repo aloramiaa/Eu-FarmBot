@@ -1,5 +1,5 @@
 git+https://github.com/dolfies/discord.py-self.git
-aiohttp[speedups]
+aiohttp==3.13.2
 python-dotenv
 requests
 datetime
