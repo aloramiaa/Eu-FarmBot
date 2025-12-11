@@ -1,3 +1,11 @@
+# --- FIX FOR GITHUB ACTIONS (aiodns + pycares incompatibility) ---
+import os
+os.environ["AIOHTTP_NO_EXTENSIONS"] = "1"
+
+import aiohttp.resolver
+aiohttp.resolver.DefaultResolver = aiohttp.resolver.AsyncResolver
+# ----------------------------------------------------------------
+
 import os
 import asyncio
 import time
