@@ -34,6 +34,10 @@ jobs:
       # Optional: Clear pip cache (in case you suspect dependency cache issues)
       - name: Clear pip cache
         run: rm -rf ~/.cache/pip
+      - name: Fix pycares issue
+        run: |
+         pip install --upgrade pip
+         pip install "pycares>=4.4.0" --force-reinstall
 
       # Step 4: Run the farm bot script with necessary environment variables
       - name: Run farm bot
